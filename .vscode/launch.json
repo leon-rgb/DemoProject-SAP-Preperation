@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-MiniconcurexpenseApplication<miniconcurexpense>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "io.github.leon_rgb.miniconcurexpense.MiniconcurexpenseApplication",
+            "projectName": "miniconcurexpense",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
