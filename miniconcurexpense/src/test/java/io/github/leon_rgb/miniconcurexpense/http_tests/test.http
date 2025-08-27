@@ -1,0 +1,21 @@
+### Create an expense
+POST http://localhost:8080/expenses
+Content-Type: application/json
+
+{
+  "description": "Laptop",
+  "amount": 1200.0
+}
+
+### Get all expenses
+GET http://localhost:8080/expenses
+
+### Create expense for tenant "sap"
+POST http://localhost:8080/expenses
+Content-Type: application/json
+X-Tenant: sap
+
+{
+  "description": "Coffee",
+  "amount": 3.5
+}
