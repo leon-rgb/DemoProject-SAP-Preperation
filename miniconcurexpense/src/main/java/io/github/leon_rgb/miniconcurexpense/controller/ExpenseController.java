@@ -6,6 +6,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Controller for managing expenses.
+ * Provides endpoints to create, retrieve, and delete expenses.
+ */
 @RestController
 @RequestMapping("/expenses")
 public class ExpenseController {
@@ -24,5 +28,15 @@ public class ExpenseController {
     @PostMapping
     public Expense create(@RequestBody Expense expense) {
         return repository.save(expense);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        repository.deleteById(id);
+    }
+    
+    @DeleteMapping()
+    public void delete() {
+        repository.deleteAll();
     }
 }

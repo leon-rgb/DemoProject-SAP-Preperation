@@ -4,6 +4,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 
+/**
+ * Simple Expense entity.
+ */
 @Entity
 public class Expense {
     @Id

@@ -1,21 +1,75 @@
-### Create an expense
-POST http://localhost:8080/expenses
-Content-Type: application/json
+# HTTP requests for testing multi-tenancy with schema-based isolation
 
-{
-  "description": "Laptop",
-  "amount": 1200.0
-}
+### Health check
+GET http://localhost:8080/actuator/health
 
-### Get all expenses
-GET http://localhost:8080/expenses
 
-### Create expense for tenant "sap"
+### 1. Create tenant schemas (if they don't exist from startup)
+POST http://localhost:8080/tenants/sap
+
+### 2. Create expenses for 'sap' tenant
 POST http://localhost:8080/expenses
 Content-Type: application/json
 X-Tenant: sap
 
 {
-  "description": "Coffee",
-  "amount": 3.5
+  "description": "SAP Coffee",
+  "amount": 3.50
 }
+
+### 3. Create another expense for 'sap' tenant
+POST http://localhost:8080/expenses
+Content-Type: application/json
+X-Tenant: sap
+
+{
+  "description": "SAP Laptop",
+  "amount": 1200.00
+}
+
+### 4. Create expenses for 'ibm' tenant
+POST http://localhost:8080/expenses
+Content-Type: application/json
+X-Tenant: ibm
+
+{
+  "description": "IBM Coffee",
+  "amount": 4.00
+}
+
+### 5. Create another expense for 'ibm' tenant
+POST http://localhost:8080/expenses
+Content-Type: application/json
+X-Tenant: ibm
+
+{
+  "description": "IBM Office Chair",
+  "amount": 250.00
+}
+
+### 6. Get all expenses for 'sap' tenant (should show 2 expenses)
+GET http://localhost:8080/expenses
+X-Tenant: sap
+
+### 7. Get all expenses for 'ibm' tenant (should show 2 expenses)
+GET http://localhost:8080/expenses
+X-Tenant: ibm
+
+### 8. Get expenses without tenant header (should use 'public' schema)
+GET http://localhost:8080/expenses
+
+### 9. Create expense in public schema
+POST http://localhost:8080/expenses
+Content-Type: application/json
+
+{
+  "description": "Public Expense",
+  "amount": 50.00
+}
+
+### 10. Verify public schema has the expense
+GET http://localhost:8080/expenses
+
+### 11. Verify tenant isolation - sap should still only have 2 expenses
+GET http://localhost:8080/expenses
+X-Tenant: sap

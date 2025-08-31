@@ -8,37 +8,71 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
 
+/**
+ * Connection provider that sets the PostgreSQL schema based on the tenant identifier.
+ */
 @Component
 @RequiredArgsConstructor
-public class SchemaPerTenantConnectionProvider implements MultiTenantConnectionProvider<Connection> {
-  private final DataSource dataSource;
+public class SchemaPerTenantConnectionProvider implements MultiTenantConnectionProvider<String> {
+    
+    private final DataSource dataSource;
 
-  public Connection getAnyConnection() throws SQLException { return dataSource.getConnection(); }
-  public Connection getConnection(String tenant) throws SQLException {
-    Connection c = dataSource.getConnection();
-    try (Statement st = c.createStatement()) {
-      st.execute("set search_path to \"" + tenant + "\", public");
+    @Override
+    public Connection getAnyConnection() throws SQLException {
+        return dataSource.getConnection();
     }
-    return c;
-  }
-  public void releaseAnyConnection(Connection c) throws SQLException { c.close(); }
-  public void releaseConnection(String tenant, Connection c) throws SQLException {
-    try (Statement st = c.createStatement()) { st.execute("set search_path to public"); }
-    finally { c.close(); }
-  }
-  public boolean isUnwrappableAs(Class<?> a){ return false; }
-  public <T> T unwrap(Class<T> a){ return null; }
-  public boolean supportsAggressiveRelease(){ return false; }
 
-  @Override
-  public Connection getConnection(Connection arg0) throws SQLException {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'getConnection'");
-  }
-  @Override
-  public void releaseConnection(Connection arg0, Connection arg1) throws SQLException {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'releaseConnection'");
-  }
+    @Override
+    public Connection getConnection(String tenantIdentifier) throws SQLException {
+        Connection connection = dataSource.getConnection();
+        try (Statement statement = connection.createStatement()) {
+            // Set the schema for this tenant - note the correct syntax
+            System.out.println("Setting search_path to: " + tenantIdentifier);
+            statement.execute("SET search_path TO \"" + tenantIdentifier + "\"");
+            
+            // Verify the search path was set
+            ResultSet rs = statement.executeQuery("SHOW search_path");
+            if (rs.next()) {
+                System.out.println("Current search_path: " + rs.getString(1));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error setting search_path for tenant " + tenantIdentifier + ": " + e.getMessage());
+            connection.close();
+            throw e;
+        }
+        return connection;
+    }
+
+    @Override
+    public void releaseAnyConnection(Connection connection) throws SQLException {
+        connection.close();
+    }
+
+    @Override
+    public void releaseConnection(String tenantIdentifier, Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            // Reset to public schema
+            statement.execute("SET search_path TO public");
+        } finally {
+            connection.close();
+        }
+    }
+
+    @Override
+    public boolean supportsAggressiveRelease() {
+        return false;
+    }
+
+    @Override
+    @SuppressWarnings("rawtypes")
+    public boolean isUnwrappableAs(Class unwrapType) {
+        return false;
+    }
+
+    @Override
+    public <T> T unwrap(Class<T> unwrapType) {
+        return null;
+    }
 }

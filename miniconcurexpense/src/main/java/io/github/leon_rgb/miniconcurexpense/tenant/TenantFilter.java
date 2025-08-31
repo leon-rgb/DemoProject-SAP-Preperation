@@ -6,20 +6,37 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import org.springframework.lang.NonNull;
 
 import java.io.IOException;
 
+/**
+ * Servlet filter that extracts the tenant identifier from the "X-Tenant" header
+ * and sets it in the TenantContext for the duration of the request.
+ */
 @Component
 public class TenantFilter extends OncePerRequestFilter {
-  @Override protected void doFilterInternal(@NonNull HttpServletRequest req, 
-                                            @NonNull HttpServletResponse res, 
-                                            @NonNull FilterChain chain)
-      throws ServletException, IOException {
-    String tenant = req.getHeader("X-Tenant");
-    if (tenant == null || tenant.isBlank()) tenant = "public";
-    try { TenantContext.setCurrentTenant(tenant); chain.doFilter(req, res); }
-    finally { TenantContext.clear(); }
-  }
+    
+    @Override
+    protected void doFilterInternal(@NonNull HttpServletRequest request, 
+                                    @NonNull HttpServletResponse response, 
+                                    @NonNull FilterChain filterChain)
+            throws ServletException, IOException {
+        
+        String tenant = request.getHeader("X-Tenant");
+        
+        // Default to "public" if no tenant header is provided
+        if (tenant == null || tenant.isBlank()) {
+            tenant = "public";
+        }
+        
+        System.out.println("Processing request for tenant: " + tenant);
+        
+        try {
+            TenantContext.setCurrentTenant(tenant);
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
+    }
 }

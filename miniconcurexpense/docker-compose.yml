@@ -1,3 +1,5 @@
+# Docker Compose file to set up PostgreSQL and Redis services for the application.
+# It is needed for local development and testing.
 services:
   postgres:
     image: postgres:16
@@ -8,11 +10,9 @@ services:
     ports: ["5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./initdb:/docker-entrypoint-initdb.d  # optional: create schemas
-
+      - ./initdb:/docker-entrypoint-initdb.d  # For initial setup scripts
   redis:
     image: redis:7
     ports: ["6379:6379"]
-
 volumes:
   pgdata:
