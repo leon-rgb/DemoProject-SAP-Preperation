@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 
 # Resolve paths
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ROOT = Resolve-Path (Join-Path $SCRIPT_DIR "..")
+$ROOT = $SCRIPT_DIR
 $APP_DIR = $ROOT
 $FRONTEND_DIR = Join-Path $ROOT "frontend"
 

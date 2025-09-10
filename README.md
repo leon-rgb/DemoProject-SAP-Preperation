@@ -7,6 +7,7 @@
 ---
 
 ## Repository layout (high level)
+(Of subfolder `miniconcurexpense`)
 
 ```
 /frontend                      # React + Vite frontend
@@ -42,7 +43,7 @@ Make sure all of the above are available in your `PATH` before running the deplo
 ## Quickstart — deploy to local Kubernetes (minikube / kind)
 
 > The repository contains `build-and-deploy.ps1` which automates building backend & frontend images, loading them into minikube/kind, applying Kubernetes manifests, patching deployments and port-forwarding.
-
+Docker and Minikube (or kind) must be running.
 Open **PowerShell** in the `scripts` folder and run:
 
 ```powershell
