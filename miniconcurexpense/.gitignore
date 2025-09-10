@@ -1,10 +1,15 @@
+### General ###
+.DS_Store
+Thumbs.db
+
+### Maven / Java ###
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+### Spring Tool Suite ###
 .apt_generated
 .classpath
 .factorypath
@@ -31,3 +36,34 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Node / Frontend (React + Vite) ###
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.cache/
+frontend/.eslintcache
+frontend/*.local
+#frontend/.env.local
+#frontend/.env.*.local
+
+# log files
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+### Kubernetes / Deployment ###
+# ignore temporary K8s files, but keep versioned manifests under k8s/
+*.yaml~              # editor backups
+*.yml~
+*.log
+*.out
+
+# optional: if you generate manifests locally and don’t want them committed
+# k8s/generated/
+
+### Docker ###
+*.pid
+*.seed
+*.pid.lock
