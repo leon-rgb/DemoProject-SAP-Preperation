@@ -16,7 +16,7 @@ spec:
       containers:
         - name: app
           # Change this image to your repository / tag
-          image: your-docker-repo/miniconcurexpense:0.0.1
+          image: miniconcurexpense-backend:dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
