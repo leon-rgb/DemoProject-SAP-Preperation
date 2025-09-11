@@ -9,9 +9,11 @@ $ROOT = $SCRIPT_DIR
 $APP_DIR = $ROOT
 $FRONTEND_DIR = Join-Path $ROOT "frontend"
 
-# images (backend kept as simple dev tag, frontend will get a timestamped tag)
-$BACKEND_IMAGE = "miniconcurexpense-backend:dev"
+# timestamp for unique image tags
 $TIMESTAMP = Get-Date -Format "yyyyMMddHHmmss"
+
+# images (both backend and frontend use unique tags now)
+$BACKEND_IMAGE = "miniconcurexpense-backend:dev-$TIMESTAMP"
 $FRONTEND_IMAGE = "miniconcurexpense-frontend:dev-$TIMESTAMP"
 
 $K8S_NS = "miniconcur"
@@ -32,42 +34,43 @@ if (Test-Path $frontendEnv) {
 }
 
 try {
-    # --- Backend Build ---
-    Write-Host "1/10  Building backend jar"
+   # --- Backend Build ---
+    Write-Host "1/12  Building backend jar"
     Set-Location $APP_DIR
     ./mvnw -DskipTests package
 
-    Write-Host "2/10  Building backend docker image: $BACKEND_IMAGE"
-    docker build -t $BACKEND_IMAGE -f "$ROOT\Dockerfile" "$ROOT"
+    Write-Host "2/12  Building backend docker image: $BACKEND_IMAGE"
+    # Build with no cache and unique tag to guarantee freshness
+    docker build --no-cache -t $BACKEND_IMAGE -f "$ROOT\Dockerfile" "$ROOT"
 
     # --- Frontend Build ---
-    Write-Host "3/10  Building frontend docker image: $FRONTEND_IMAGE"
+    Write-Host "3/12  Building frontend docker image: $FRONTEND_IMAGE"
     Set-Location $FRONTEND_DIR
 
-    # clean builder cache lightly and remove any old local dev-tag image if present
+    # clean builder cache lightly
     docker builder prune -f
 
-    # Build with no cache and unique tag to guarantee freshness
+    # Build frontend with no cache and unique tag
     docker build --no-cache -t $FRONTEND_IMAGE -f "$FRONTEND_DIR\Dockerfile" "$FRONTEND_DIR"
 
     # --- Load images into cluster ---
     if ($env:USE_KIND -eq "true") {
-        Write-Host "4/10  Loading images into kind cluster"
+        Write-Host "4/12  Loading images into kind cluster"
         kind load docker-image $BACKEND_IMAGE
         kind load docker-image $FRONTEND_IMAGE
     }
     elseif ($env:USE_MINIKUBE -eq "true") {
-        Write-Host "4/10  Loading images into minikube"
+        Write-Host "4/12  Loading images into minikube"
         kubectl cluster-info
         minikube image load $BACKEND_IMAGE
         minikube image load $FRONTEND_IMAGE
     }
     else {
-        Write-Host "4/10  Not loading into local cluster (assumes cluster can pull image by this name)."
+        Write-Host "4/12  Not loading into local cluster (assumes cluster can pull image by this name)."
     }
 
     # --- Ensure namespace exists ---
-    Write-Host "5/10  Ensure namespace exists"
+    Write-Host "5/12  Ensure namespace exists"
     try {
         kubectl get ns $K8S_NS *> $null 2>&1
     } catch {
@@ -76,7 +79,7 @@ try {
     }
 
     # --- Apply secrets (idempotent) ---
-    Write-Host "6/10  Apply secrets and namespace manifest (idempotent)"
+    Write-Host "6/12  Apply secrets and namespace manifest (idempotent)"
     kubectl -n $K8S_NS apply -f k8s/namespace.yaml
     kubectl -n $K8S_NS create secret generic db-credentials `
         --from-literal=POSTGRES_USER=app `
@@ -85,7 +88,7 @@ try {
     kubectl apply -f -
 
     # --- Apply k8s manifests ---
-    Write-Host "7/10  Apply k8s manifests"
+    Write-Host "7/12  Apply k8s manifests"
     Set-Location $ROOT
     kubectl -n $K8S_NS apply -f k8s/postgres-service.yaml
     kubectl -n $K8S_NS apply -f k8s/postgres-statefulset.yaml
@@ -95,32 +98,55 @@ try {
     kubectl -n $K8S_NS apply -f k8s/frontend-deployment.yaml
     kubectl -n $K8S_NS apply -f k8s/frontend-service.yaml
 
-    Write-Host "Applying backend deployment"
+    Write-Host "8/12  Applying backend deployment"
     kubectl -n $K8S_NS apply -f k8s/app-deployment.yaml
 
     Write-Host "Patching backend deployment image to $BACKEND_IMAGE"
     kubectl -n $K8S_NS set image deployment/miniconcurexpense app=$BACKEND_IMAGE --record=false
 
     Write-Host "Patching frontend deployment image to $FRONTEND_IMAGE"
-    # crucial: set the exact unique tag we just built and loaded
     kubectl -n $K8S_NS set image deployment/frontend frontend=$FRONTEND_IMAGE --record=false
 
     kubectl -n $K8S_NS apply -f k8s/app-service.yaml
 
     # --- Wait for pods to be ready ---
-    Write-Host "8/10  Wait for pods to be ready (timeout 180s)"
+    Write-Host "9/12  Wait for pods to be ready (timeout 180s)"
     kubectl -n $K8S_NS wait --for=condition=available deployment/miniconcurexpense --timeout=180s
     kubectl -n $K8S_NS wait --for=condition=available deployment/frontend --timeout=180s
     kubectl -n $K8S_NS wait --for=condition=ready pod -l app=postgres --timeout=180s
     kubectl -n $K8S_NS wait --for=condition=ready pod -l app=redis --timeout=120s
 
-    # --- Optional: restart frontend to ensure new image picked up immediately ---
-    Write-Host "9/10  Restart frontend rollout to ensure pods are re-created with the new image"
+    # --- Restart front/backend to ensure new images are picked up ---
+    Write-Host "10/12  Restarting deployments to ensure pods are recreated with new images"
+    kubectl -n $K8S_NS rollout restart deployment/miniconcurexpense
     kubectl -n $K8S_NS rollout restart deployment/frontend
+
+    kubectl -n $K8S_NS rollout status deployment/miniconcurexpense
     kubectl -n $K8S_NS rollout status deployment/frontend
 
+    # --- Verification: show pod imageIDs and local image IDs ---
+    Write-Host "11/12  Verification: pod imageIDs and local image IDs"
+
+    Write-Host "Pod imageID (backend):"
+    try {
+        $podBackendImageID = & kubectl -n $K8S_NS get pod -l app=miniconcurexpense -o jsonpath='{.items[0].status.containerStatuses[0].imageID}{"`n"}' 2>$null
+        if ([string]::IsNullOrEmpty($podBackendImageID)) { Write-Host "<not found>" } else { Write-Host $podBackendImageID }
+    } catch { Write-Host "<not found>" }
+
+    Write-Host "Pod imageID (frontend):"
+    try {
+        $podFrontendImageID = & kubectl -n $K8S_NS get pod -l app=frontend -o jsonpath='{.items[0].status.containerStatuses[0].imageID}{"`n"}' 2>$null
+        if ([string]::IsNullOrEmpty($podFrontendImageID)) { Write-Host "<not found>" } else { Write-Host $podFrontendImageID }
+    } catch { Write-Host "<not found>" }
+
+    Write-Host "Local image ID (backend):"
+    docker inspect --format='{{.Id}}' $BACKEND_IMAGE
+
+    Write-Host "Local image ID (frontend):"
+    docker inspect --format='{{.Id}}' $FRONTEND_IMAGE
+
     # --- Port-forwarding ---
-    Write-Host "10/10  Deployment finished. Port-forwarding instructions:"
+    Write-Host "12/12  Deployment finished. Port-forwarding instructions:"
     Write-Host "  Backend: kubectl -n $K8S_NS port-forward svc/miniconcurexpense 8080:8080"
     Write-Host "  Frontend: kubectl -n $K8S_NS port-forward svc/frontend 8081:80"
     kubectl -n $K8S_NS port-forward svc/frontend 8081:80
