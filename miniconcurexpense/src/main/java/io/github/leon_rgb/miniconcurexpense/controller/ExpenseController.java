@@ -3,8 +3,9 @@ package io.github.leon_rgb.miniconcurexpense.controller;
 import io.github.leon_rgb.miniconcurexpense.model.Expense;
 import io.github.leon_rgb.miniconcurexpense.repository.ExpenseRepository;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 /**
  * Controller for managing expenses.
@@ -20,9 +21,18 @@ public class ExpenseController {
         this.repository = repository;
     }
 
+    /**
+     * Return a page of expenses. Sort by id desc so the most recent (highest id)
+     * appear first. Query params:
+     *   ?page=0 (default)
+     *   &size=20 (default)
+     */
     @GetMapping
-    public List<Expense> getAll() {
-        return repository.findAll();
+    public Page<Expense> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return repository.findAll(PageRequest.of(page, size, Sort.by("id").descending()));
     }
 
     @PostMapping
